@@ -1,0 +1,122 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atcu"
+authors = [
+    { name = "Alvin Yip", email = "keongalvin@gmail.com" }
+]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+description = "ATC Utils"
+keywords = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+dynamic = ["version"]
+readme = "README.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
+
+[tool.check-wheel-contents]
+toplevel = ["atcu"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "A001", # shadowing is fine
+    "A002", # shadowing is fine
+    "A003", # shadowing is fine
+    "ANN", # Mypy is better at this
+    "ARG", # unused arguments are normal when implementing interfaces
+    "C901", # we're complex software
+    "COM", # ruff format takes care of our commas
+    "D", # We prefer our own docstring style.
+    "E501", # leave line-length enforcement to ruff format
+    "ERA001", # we need to keep around some notes
+    "FBT", # we don't hate bool args around here
+    "FIX", # Yes, we want XXX as a marker.
+    "ISC001", # conflicts with ruff format
+    "N", # we need more naming freedom
+    "PD", # we're not pandas
+    "PLC0415", # sometimes, imports have to live elsewhere
+    "PLR0912", # we're complex software
+    "PLR0913", # yes, many arguments, but most have defaults
+    "PLR0915", # we're complex software
+    "PLR2004", # numbers are sometimes fine
+    "PLW0603", # sometimes we need globals
+    "S307", # eval FTW
+    "SLF001", # private members are accessed by friendly functions
+    "TC", # TYPE_CHECKING blocks break autodocs
+    "TD", # we don't follow other people's todo style
+    "TRY301", # I'm sorry, but this makes not sense for us.
+    "UP031", # format() is slow as molasses; % and f'' FTW.
+    "UP006", # replace Dict etc by dict etc later.
+    "UP035", # replace Dict etc by dict etc later.
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["atcu"]
+force-single-line = true
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["atcu"]
+
+[tool.ruff.lint.per-file-ignores]
+"bench/**" = [
+    "INP001", # Benchmarks don't have to be importable.
+    "T201", # print() is expected in benchmark scripts.
+]
+"**/test_*" = [
+    "INP001",
+    "B015", # pointless comparison in tests aren't pointless
+    "B017", # pytest.raises(Exception) is fine
+    "B018", # pointless expressions in tests aren't pointless
+    "DTZ", # datetime best practices don't matter in tests
+    "EM", # no need for exception msg hygiene in tests
+    "PLE0309", # hash doesn't have to return anything in tests
+    "PLW1641", # it's OK to rely object's __hash__
+    "PLR0124", # pointless comparison in tests aren't pointless
+    "PT011", # broad is fine
+    "PT012", # sometimes we need more than a single stmt
+    "RUF012", # we don't do ClassVar annotations in tests
+    "S", # security concerns don't matter in tests
+    "SIM201", # sometimes we need to check `not ==`
+    "SIM202", # sometimes we need to check `not ==`
+    "SIM300", # Yoda rocks in asserts
+    "TRY", # exception best practices don't matter in tests
+]
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib", # make src truly unimportable
+]
+xfail_strict = true
+testpaths = "tests"
+
+[tool.coverage.run]
+parallel = true
+branch = true
+patch = ["subprocess"]
+source_pkgs = ["atcu"]
