@@ -306,3 +306,67 @@ class TestCointegrationTest:
             - result.engle_granger.intercept
         )
         np.testing.assert_array_almost_equal(result.residuals, expected_spread)
+
+
+class TestCointegrationResultPlot:
+    """Test CointegrationResult plotting functionality."""
+
+    def test_plot_returns_figure(self):
+        """plot() method returns a matplotlib Figure."""
+        from matplotlib.figure import Figure
+
+        np.random.seed(42)
+        n = 100
+        prices_a = np.random.randn(n) + 100
+        prices_b = np.random.randn(n) + 50
+
+        result = cointegration_test(prices_a, prices_b)
+
+        fig = result.plot()
+
+        assert isinstance(fig, Figure)
+
+    def test_plot_with_labels(self):
+        """plot() accepts custom labels for the series."""
+        from matplotlib.figure import Figure
+
+        np.random.seed(42)
+        n = 100
+        prices_a = np.random.randn(n) + 100
+        prices_b = np.random.randn(n) + 50
+
+        result = cointegration_test(prices_a, prices_b)
+
+        fig = result.plot(label_a="NVDA", label_b="AMD")
+
+        assert isinstance(fig, Figure)
+
+    def test_plot_with_timestamps(self):
+        """plot() can use timestamps for x-axis."""
+        from matplotlib.figure import Figure
+
+        np.random.seed(42)
+        n = 100
+        prices_a = np.random.randn(n) + 100
+        prices_b = np.random.randn(n) + 50
+        timestamps = list(range(n))
+
+        result = cointegration_test(prices_a, prices_b)
+
+        fig = result.plot(timestamps=timestamps)
+
+        assert isinstance(fig, Figure)
+
+    def test_prices_stored_for_plotting(self):
+        """CointegrationResult stores prices for plotting."""
+        np.random.seed(42)
+        n = 100
+        prices_a = np.random.randn(n) + 100
+        prices_b = np.random.randn(n) + 50
+
+        result = cointegration_test(prices_a, prices_b)
+
+        assert result.prices_a is not None
+        assert result.prices_b is not None
+        assert len(result.prices_a) == n
+        assert len(result.prices_b) == n

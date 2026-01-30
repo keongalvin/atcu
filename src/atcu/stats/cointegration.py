@@ -12,8 +12,11 @@ References:
 
 from __future__ import annotations
 
+from typing import Sequence
+
 import attrs
 import numpy as np
+from matplotlib.figure import Figure
 
 # ADF critical values (MacKinnon 1994) for "c" (constant, no trend)
 # Key: sample size threshold, value: (1%, 5%, 10%)
@@ -73,6 +76,8 @@ class CointegrationResult:
 
     engle_granger: EngleGrangerResult
     residuals: np.ndarray = attrs.field(eq=False, repr=False)
+    prices_a: np.ndarray = attrs.field(eq=False, repr=False)
+    prices_b: np.ndarray = attrs.field(eq=False, repr=False)
 
     @property
     def cointegrated(self) -> bool:
@@ -83,6 +88,73 @@ class CointegrationResult:
     def hedge_ratio(self) -> float:
         """Hedge ratio (beta) from cointegrating regression."""
         return self.engle_granger.hedge_ratio
+
+    def plot(
+        self,
+        label_a: str = "Series A",
+        label_b: str = "Series B",
+        timestamps: Sequence | None = None,
+    ) -> Figure:
+        """Plot prices and spread for visual inspection.
+
+        Args:
+            label_a: Label for first price series
+            label_b: Label for second price series
+            timestamps: Optional x-axis values (e.g., dates)
+
+        Returns:
+            matplotlib Figure with two subplots:
+            - Top: Both price series
+            - Bottom: Spread (residuals) with mean and ±1σ bands
+        """
+        x = timestamps if timestamps is not None else range(len(self.prices_a))
+        spread = self.residuals
+        spread_mean = float(np.mean(spread))
+        spread_std = float(np.std(spread))
+
+        fig = Figure(figsize=(12, 8))
+        ax1 = fig.add_subplot(2, 1, 1)
+        ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
+
+        # Top: price series
+        ax1.plot(x, self.prices_a, label=label_a, alpha=0.8)
+        ax1.plot(x, self.prices_b, label=label_b, alpha=0.8)
+        ax1.set_ylabel("Price")
+        ax1.legend(loc="upper left")
+        status = "COINTEGRATED" if self.cointegrated else "NOT COINTEGRATED"
+        ax1.set_title(
+            f"{label_a}/{label_b} | {status} | "
+            f"ADF={self.engle_granger.adf_statistic:.3f} "
+            f"(p{self.engle_granger.pvalue_approx}) | "
+            f"hedge={self.hedge_ratio:.4f}"
+        )
+        ax1.grid(True, alpha=0.3)
+
+        # Bottom: spread with bands
+        ax2.plot(x, spread, label="Spread", color="purple", alpha=0.8)
+        ax2.axhline(spread_mean, color="black", linestyle="--", label="Mean")
+        ax2.axhline(spread_mean + spread_std, color="gray", linestyle=":", alpha=0.7)
+        ax2.axhline(
+            spread_mean - spread_std,
+            color="gray",
+            linestyle=":",
+            alpha=0.7,
+            label="±1σ",
+        )
+        ax2.fill_between(
+            x,
+            spread_mean - spread_std,
+            spread_mean + spread_std,
+            alpha=0.1,
+            color="gray",
+        )
+        ax2.set_xlabel("Time")
+        ax2.set_ylabel(f"Spread ({label_a} - {self.hedge_ratio:.2f}×{label_b})")
+        ax2.legend(loc="upper left")
+        ax2.grid(True, alpha=0.3)
+
+        fig.tight_layout()
+        return fig
 
 
 def get_adf_critical_values(n: int) -> tuple[float, float, float]:
@@ -287,4 +359,6 @@ def cointegration_test(
     return CointegrationResult(
         engle_granger=eg_result,
         residuals=residuals,
+        prices_a=prices_a,
+        prices_b=prices_b,
     )
