@@ -50,9 +50,8 @@ toplevel = ["atcu"]
 
 [tool.ruff.lint]
 select = ["ALL"]
+allowed-confusables = ["σ", ]
 ignore = [
-    "RUF002", # Use greek in some doc strings.
-    "RUF003", # Use greek in some doc strings.
     "A001", # shadowing is fine
     "A002", # shadowing is fine
     "A003", # shadowing is fine

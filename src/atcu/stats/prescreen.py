@@ -1,30 +1,25 @@
-from typing import TYPE_CHECKING
-
 import attrs
-import matplotlib.pyplot as plt
-import polars as pl
-
-if TYPE_CHECKING:
-    from matplotlib.figure import Figure
-
 import numpy as np
+import polars as pl
+from matplotlib.figure import Figure
+
+from atcu.schemas.pairs import TradingPair
 
 
 @attrs.frozen
 class PrescreenResult:
     """Result of pair prescreening based on normalized prices."""
 
-    correlation: float  # Correlation of normalized prices
-    spread_mean: float  # Mean of normalized spread
-    spread_std: float  # Std of normalized spread
-    spread_range: float  # Max - min of normalized spread
-    zero_crossings: int  # Number of times spread crosses zero
-    half_life: float | None  # Estimated half-life of mean reversion (None if divergent)
-    passed: bool  # Whether pair passes prescreening
-    n_observations: int  # Number of observations used
+    pair: TradingPair
+    correlation: float
+    spread_mean: float
+    spread_std: float
+    spread_range: float
+    zero_crossings: int
+    half_life: float | None
+    passed: bool
+    n_observations: int
     # Data for plotting
-    col_a: str = attrs.field(default="")
-    col_b: str = attrs.field(default="")
     timestamps: list = attrs.field(factory=list)
     norm_a: list[float] = attrs.field(factory=list)
     norm_b: list[float] = attrs.field(factory=list)
@@ -35,24 +30,26 @@ class PrescreenResult:
         """Zero crossings per 100 observations."""
         return self.zero_crossings * 100 / max(1, self.n_observations)
 
-    def plot(self) -> "Figure":
+    def plot(self) -> Figure:
         """Plot normalized prices and spread for visual inspection."""
-
         norm_a = np.array(self.norm_a)
         norm_b = np.array(self.norm_b)
         spread = np.array(self.spread)
         x = self.timestamps if self.timestamps else range(len(norm_a))
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+        fig = Figure(figsize=(12, 8))
+        ax1 = fig.add_subplot(2, 1, 1)
+        ax2 = fig.add_subplot(2, 1, 2, sharex=ax1)
 
         # Top: normalized prices
-        ax1.plot(x, norm_a, label=self.col_a, alpha=0.8)
-        ax1.plot(x, norm_b, label=self.col_b, alpha=0.8)
+        ax1.plot(x, norm_a, label=self.pair.symbol_a, alpha=0.8)
+        ax1.plot(x, norm_b, label=self.pair.symbol_b, alpha=0.8)
         ax1.set_ylabel("Normalized Price")
         ax1.legend(loc="upper left")
         half_life_str = f"{self.half_life:.1f}" if self.half_life else "None"
         ax1.set_title(
-            f"Prescreen: {'PASS' if self.passed else 'FAIL'} | "
+            f"{self.pair.pair_id} | "
+            f"{'PASS' if self.passed else 'FAIL'} | "
             f"corr={self.correlation:.3f} | "
             f"half_life={half_life_str} | "
             f"crossings={self.zero_crossings}"
@@ -85,14 +82,13 @@ class PrescreenResult:
         ax2.grid(True, alpha=0.3)
 
         fig.autofmt_xdate()
-        plt.tight_layout()
+        fig.tight_layout()
         return fig
 
 
 def prescreen_pair(
     lf: pl.LazyFrame,
-    col_a: str,
-    col_b: str,
+    pair: TradingPair,
     min_correlation: float = 0.7,
     max_half_life: float = 2000.0,  # ~5 trading days for minute data
     min_zero_crossings: int = 5,
@@ -105,7 +101,9 @@ def prescreen_pair(
     2. Reasonable half-life (mean reversion speed)
     3. Sufficient zero crossings (actual mean-reverting behavior)
     """
-    ln2 = 0.6931471805599453  # math.log(2)
+    col_a = pair.symbol_a.upper()
+    col_b = pair.symbol_b.upper()
+    ln2 = np.log(2)
 
     # Normalize prices: divide by first value and compute spread
     lf_norm = lf.with_columns(
@@ -174,6 +172,7 @@ def prescreen_pair(
     df_plot = lf_norm.select("timestamp", "norm_a", "norm_b", "spread").collect()
 
     return PrescreenResult(
+        pair=pair,
         correlation=row["correlation"],
         spread_mean=row["spread_mean"],
         spread_std=row["spread_std"],
@@ -182,8 +181,6 @@ def prescreen_pair(
         half_life=row["half_life"],
         passed=passed,
         n_observations=row["n_observations"],
-        col_a=col_a,
-        col_b=col_b,
         timestamps=df_plot["timestamp"].to_list(),
         norm_a=df_plot["norm_a"].to_list(),
         norm_b=df_plot["norm_b"].to_list(),
