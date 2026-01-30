@@ -9,16 +9,26 @@ authors = [
 ]
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 description = "ATC Utils"
 keywords = []
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dependencies = []
+dependencies = [
+    "attrs>=25.4.0",
+    "boto3>=1.42.30",
+    "massive>=2.1.0",
+    "matplotlib>=3.10.8",
+    "numpy>=2.2.3",
+    "polars>=1.37.1",
+    "pyyaml>=6.0.3",
+    "s3fs>=2026.1.0",
+]
 dynamic = ["version"]
 readme = "README.md"
 
@@ -41,6 +51,8 @@ toplevel = ["atcu"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "RUF002", # Use greek in some doc strings.
+    "RUF003", # Use greek in some doc strings.
     "A001", # shadowing is fine
     "A002", # shadowing is fine
     "A003", # shadowing is fine
@@ -80,6 +92,9 @@ force-single-line = true
 extend-ignore-names = ["atcu"]
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**" = [
+    "INP001", # Not a package.
+]
 "bench/**" = [
     "INP001", # Benchmarks don't have to be importable.
     "T201", # print() is expected in benchmark scripts.

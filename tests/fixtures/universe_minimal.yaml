@@ -1,0 +1,70 @@
+# Minimal universe fixture for testing
+sectors:
+  electronic_technology:
+    name: Electronic Technology
+    industries:
+      semiconductors:
+        name: Semiconductors
+        symbols:
+          - symbol: NVDA
+            name: NVIDIA Corporation
+            market_cap_billions: 4170
+            focus: GPUs, AI accelerators
+            sub_industry: gpu_ai
+          - symbol: AVGO
+            name: Broadcom Inc.
+            market_cap_billions: 1530
+            focus: Custom ASICs, networking
+          - symbol: KLAC
+            name: KLA Corporation
+            market_cap_billions: 154
+            focus: Wafer inspection
+            sub_industry: inspection_metrology
+            secondary_industries: [electronic_production_equipment]
+
+      electronic_production_equipment:
+        name: Electronic Production Equipment
+        symbols:
+          - symbol: AMAT
+            name: Applied Materials
+            market_cap_billions: 205
+            focus: Deposition, etch, inspection
+            sub_industry: deposition_etch
+          - symbol: LRCX
+            name: Lam Research
+            market_cap_billions: 195
+            focus: Etch, deposition
+            sub_industry: deposition_etch
+
+  technology_services:
+    name: Technology Services
+    industries:
+      packaged_software:
+        name: Packaged Software
+        symbols:
+          - symbol: SNPS
+            name: Synopsys
+            market_cap_billions: 91
+            focus: EDA software
+            sub_industry: eda_software
+          - symbol: CDNS
+            name: Cadence Design
+            market_cap_billions: 87
+            focus: EDA software
+            sub_industry: eda_software
+
+pairs:
+  semiconductor:
+    - symbols: [NVDA, AVGO]
+      type: gpu_ai
+      driver: Direct GPU competition
+
+  equipment:
+    - symbols: [AMAT, LRCX]
+      type: fab_equipment
+      driver: Deposition/etch
+
+  eda:
+    - symbols: [SNPS, CDNS]
+      type: eda
+      driver: Design software duopoly
