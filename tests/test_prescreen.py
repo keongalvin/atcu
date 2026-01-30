@@ -4,8 +4,20 @@ import random
 
 import polars as pl
 
+from atcu.schemas.pairs import PairType
+from atcu.schemas.pairs import TradingPair
 from atcu.stats.prescreen import PrescreenResult
 from atcu.stats.prescreen import prescreen_pair
+
+
+def make_pair(symbol_a: str, symbol_b: str) -> TradingPair:
+    """Create a TradingPair for testing."""
+    return TradingPair(
+        symbol_a=symbol_a,
+        symbol_b=symbol_b,
+        pair_type=PairType.GPU_AI,
+        correlation_driver="test",
+    )
 
 
 class TestPrescreenPair:
@@ -15,12 +27,13 @@ class TestPrescreenPair:
         """Function returns a PrescreenResult instance."""
         lf = pl.LazyFrame(
             {
-                "a": [100.0, 101.0, 102.0, 101.0, 100.0] * 20,
-                "b": [50.0, 50.5, 51.0, 50.5, 50.0] * 20,
+                "timestamp": list(range(100)),
+                "A": [100.0, 101.0, 102.0, 101.0, 100.0] * 20,
+                "B": [50.0, 50.5, 51.0, 50.5, 50.0] * 20,
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert isinstance(result, PrescreenResult)
 
@@ -29,12 +42,13 @@ class TestPrescreenPair:
         # Prices that move together proportionally
         lf = pl.LazyFrame(
             {
-                "a": [100.0, 110.0, 105.0, 115.0, 110.0] * 20,
-                "b": [50.0, 55.0, 52.5, 57.5, 55.0] * 20,
+                "timestamp": list(range(100)),
+                "A": [100.0, 110.0, 105.0, 115.0, 110.0] * 20,
+                "B": [50.0, 55.0, 52.5, 57.5, 55.0] * 20,
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.correlation > 0.99
 
@@ -43,12 +57,13 @@ class TestPrescreenPair:
         # One trends up, other oscillates
         lf = pl.LazyFrame(
             {
-                "a": list(range(100, 200)),
-                "b": [50 + (i % 10) for i in range(100)],
+                "timestamp": list(range(100)),
+                "A": list(range(100, 200)),
+                "B": [50 + (i % 10) for i in range(100)],
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.correlation < 0.5
 
@@ -56,12 +71,13 @@ class TestPrescreenPair:
         """Spread mean, std, and range are computed."""
         lf = pl.LazyFrame(
             {
-                "a": [100.0, 102.0, 104.0, 102.0, 100.0] * 20,
-                "b": [100.0, 101.0, 102.0, 101.0, 100.0] * 20,
+                "timestamp": list(range(100)),
+                "A": [100.0, 102.0, 104.0, 102.0, 100.0] * 20,
+                "B": [100.0, 101.0, 102.0, 101.0, 100.0] * 20,
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.spread_mean is not None
         assert result.spread_std is not None
@@ -74,9 +90,9 @@ class TestPrescreenPair:
         a_prices = [100.0 + (i % 4) for i in range(n)]
         b_prices = [100.0 + ((i + 2) % 4) for i in range(n)]
 
-        lf = pl.LazyFrame({"a": a_prices, "b": b_prices})
+        lf = pl.LazyFrame({"timestamp": list(range(n)), "A": a_prices, "B": b_prices})
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.zero_crossings > 0
 
@@ -85,12 +101,13 @@ class TestPrescreenPair:
         n = 50
         lf = pl.LazyFrame(
             {
-                "a": [100.0 + i * 0.1 for i in range(n)],
-                "b": [100.0 + i * 0.1 for i in range(n)],
+                "timestamp": list(range(n)),
+                "A": [100.0 + i * 0.1 for i in range(n)],
+                "B": [100.0 + i * 0.1 for i in range(n)],
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.n_observations == n
 
@@ -100,9 +117,9 @@ class TestPrescreenPair:
         a_prices = [100.0 + (i % 4) for i in range(n)]
         b_prices = [100.0 + ((i + 2) % 4) for i in range(n)]
 
-        lf = pl.LazyFrame({"a": a_prices, "b": b_prices})
+        lf = pl.LazyFrame({"timestamp": list(range(n)), "A": a_prices, "B": b_prices})
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         expected_rate = result.zero_crossings * 100 / result.n_observations
         assert result.crossing_rate == expected_rate
@@ -132,9 +149,9 @@ class TestPrescreenPairHalfLife:
         a_prices = [b + s for b, s in zip(base, spread, strict=False)]
         b_prices = base
 
-        lf = pl.LazyFrame({"a": a_prices, "b": b_prices})
+        lf = pl.LazyFrame({"timestamp": list(range(n)), "A": a_prices, "B": b_prices})
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.half_life is not None
         assert result.half_life > 0
@@ -155,9 +172,9 @@ class TestPrescreenPairHalfLife:
         a_prices = [b + s for b, s in zip(base, spread, strict=False)]
         b_prices = base
 
-        lf = pl.LazyFrame({"a": a_prices, "b": b_prices})
+        lf = pl.LazyFrame({"timestamp": list(range(n)), "A": a_prices, "B": b_prices})
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.half_life is None
 
@@ -176,12 +193,11 @@ class TestPrescreenPairPassed:
         a_prices = base
         b_prices = [p * 0.5 + 0.01 * (i % 3 - 1) for i, p in enumerate(base)]
 
-        lf = pl.LazyFrame({"a": a_prices, "b": b_prices})
+        lf = pl.LazyFrame({"timestamp": list(range(n)), "A": a_prices, "B": b_prices})
 
         result = prescreen_pair(
             lf,
-            "a",
-            "b",
+            make_pair("a", "b"),
             min_correlation=0.7,
             max_half_life=2000.0,
             min_zero_crossings=5,
@@ -200,12 +216,13 @@ class TestPrescreenPairPassed:
         # Uncorrelated prices
         lf = pl.LazyFrame(
             {
-                "a": list(range(100, 200)),
-                "b": [50 + (i % 10) for i in range(100)],
+                "timestamp": list(range(100)),
+                "A": list(range(100, 200)),
+                "B": [50 + (i % 10) for i in range(100)],
             }
         )
 
-        result = prescreen_pair(lf, "a", "b", min_correlation=0.9)
+        result = prescreen_pair(lf, make_pair("a", "b"), min_correlation=0.9)
 
         assert result.passed is False
 
@@ -220,12 +237,13 @@ class TestPrescreenPairPassed:
 
         lf = pl.LazyFrame(
             {
-                "a": [b + s for b, s in zip(base, spread, strict=False)],
-                "b": base,
+                "timestamp": list(range(n)),
+                "A": [b + s for b, s in zip(base, spread, strict=False)],
+                "B": base,
             }
         )
 
-        result = prescreen_pair(lf, "a", "b")
+        result = prescreen_pair(lf, make_pair("a", "b"))
 
         assert result.half_life is None
         assert result.passed is False
@@ -235,11 +253,61 @@ class TestPrescreenPairPassed:
         # Prices that don't cross much
         lf = pl.LazyFrame(
             {
-                "a": [100.0 + i * 0.01 for i in range(100)],
-                "b": [100.0 + i * 0.01 for i in range(100)],
+                "timestamp": list(range(100)),
+                "A": [100.0 + i * 0.01 for i in range(100)],
+                "B": [100.0 + i * 0.01 for i in range(100)],
             }
         )
 
-        result = prescreen_pair(lf, "a", "b", min_zero_crossings=50)
+        result = prescreen_pair(lf, make_pair("a", "b"), min_zero_crossings=50)
 
         assert result.passed is False
+
+
+class TestPrescreenResultRepr:
+    """Test PrescreenResult __repr__ method."""
+
+    def test_repr_excludes_plotting_data(self):
+        """Repr should not include timestamps, norm_a, norm_b, spread lists."""
+        result = PrescreenResult(
+            pair=make_pair("test", "pair"),
+            correlation=0.95,
+            spread_mean=0.001,
+            spread_std=0.002,
+            spread_range=0.01,
+            zero_crossings=10,
+            half_life=50.0,
+            passed=True,
+            n_observations=1000,
+            timestamps=list(range(1000)),
+            norm_a=[1.0] * 1000,
+            norm_b=[1.0] * 1000,
+            spread=[0.0] * 1000,
+        )
+
+        repr_str = repr(result)
+
+        # Should not contain the large lists
+        assert "timestamps=" not in repr_str
+        assert "norm_a=" not in repr_str
+        assert "norm_b=" not in repr_str
+        assert "spread=" not in repr_str
+
+    def test_repr_includes_key_metrics(self):
+        """Repr should include the key screening metrics."""
+        result = PrescreenResult(
+            pair=make_pair("btc", "eth"),
+            correlation=0.85,
+            spread_mean=0.01,
+            spread_std=0.02,
+            spread_range=0.1,
+            zero_crossings=15,
+            half_life=100.0,
+            passed=True,
+            n_observations=500,
+        )
+
+        repr_str = repr(result)
+
+        assert "0.85" in repr_str  # correlation
+        assert "passed=True" in repr_str or "PASS" in repr_str

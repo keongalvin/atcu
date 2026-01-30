@@ -63,3 +63,6 @@ class TradingPair:
         """Canonical pair identifier (alphabetically ordered)."""
         symbols = sorted([self.symbol_a, self.symbol_b])
         return f"{symbols[0]}_{symbols[1]}"
+
+    def __repr__(self) -> str:
+        return f"TradingPair({self.pair_id!r}, type={self.pair_type.value!r})"

@@ -181,3 +181,20 @@ class TestSymbolCount:
         universe = load_fixture_universe()
 
         assert len(universe.pairs) == 3
+
+
+class TestTradingPairRepr:
+    """Test TradingPair __repr__ method."""
+
+    def test_repr_includes_pair_id(self):
+        """Repr should include pair_id for easy identification."""
+        pair = TradingPair(
+            symbol_a="BTC",
+            symbol_b="ETH",
+            pair_type=PairType.GPU_AI,
+            correlation_driver="Test driver",
+        )
+
+        repr_str = repr(pair)
+
+        assert "BTC_ETH" in repr_str
