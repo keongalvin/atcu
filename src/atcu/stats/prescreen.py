@@ -30,6 +30,19 @@ class PrescreenResult:
         """Zero crossings per 100 observations."""
         return self.zero_crossings * 100 / max(1, self.n_observations)
 
+    def __repr__(self) -> str:
+        """Repr excluding large plotting data arrays."""
+        half_life_str = f"{self.half_life:.1f}" if self.half_life else "None"
+        return (
+            f"PrescreenResult("
+            f"pair={self.pair!r}, "
+            f"corr={self.correlation:.3f}, "
+            f"half_life={half_life_str}, "
+            f"crossings={self.zero_crossings}, "
+            f"n={self.n_observations}, "
+            f"passed={self.passed})"
+        )
+
     def plot(self) -> Figure:
         """Plot normalized prices and spread for visual inspection."""
         norm_a = np.array(self.norm_a)
