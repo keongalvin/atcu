@@ -1,10 +1,13 @@
 from typing import TYPE_CHECKING
 
 import attrs
+import matplotlib.pyplot as plt
 import polars as pl
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
+
+import numpy as np
 
 
 @attrs.frozen
@@ -19,11 +22,71 @@ class PrescreenResult:
     half_life: float | None  # Estimated half-life of mean reversion (None if divergent)
     passed: bool  # Whether pair passes prescreening
     n_observations: int  # Number of observations used
+    # Data for plotting
+    col_a: str = attrs.field(default="")
+    col_b: str = attrs.field(default="")
+    timestamps: list = attrs.field(factory=list)
+    norm_a: list[float] = attrs.field(factory=list)
+    norm_b: list[float] = attrs.field(factory=list)
+    spread: list[float] = attrs.field(factory=list)
 
     @property
     def crossing_rate(self) -> float:
         """Zero crossings per 100 observations."""
         return self.zero_crossings * 100 / max(1, self.n_observations)
+
+    def plot(self) -> "Figure":
+        """Plot normalized prices and spread for visual inspection."""
+
+        norm_a = np.array(self.norm_a)
+        norm_b = np.array(self.norm_b)
+        spread = np.array(self.spread)
+        x = self.timestamps if self.timestamps else range(len(norm_a))
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+
+        # Top: normalized prices
+        ax1.plot(x, norm_a, label=self.col_a, alpha=0.8)
+        ax1.plot(x, norm_b, label=self.col_b, alpha=0.8)
+        ax1.set_ylabel("Normalized Price")
+        ax1.legend(loc="upper left")
+        half_life_str = f"{self.half_life:.1f}" if self.half_life else "None"
+        ax1.set_title(
+            f"Prescreen: {'PASS' if self.passed else 'FAIL'} | "
+            f"corr={self.correlation:.3f} | "
+            f"half_life={half_life_str} | "
+            f"crossings={self.zero_crossings}"
+        )
+        ax1.grid(True, alpha=0.3)
+
+        # Bottom: spread with bands
+        ax2.plot(x, spread, label="Spread", color="purple", alpha=0.8)
+        ax2.axhline(self.spread_mean, color="black", linestyle="--", label="Mean")
+        ax2.axhline(
+            self.spread_mean + self.spread_std, color="gray", linestyle=":", alpha=0.7
+        )
+        ax2.axhline(
+            self.spread_mean - self.spread_std,
+            color="gray",
+            linestyle=":",
+            alpha=0.7,
+            label="±1σ",
+        )
+        ax2.fill_between(
+            x,
+            self.spread_mean - self.spread_std,
+            self.spread_mean + self.spread_std,
+            alpha=0.1,
+            color="gray",
+        )
+        ax2.set_xlabel("Date")
+        ax2.set_ylabel("Spread (norm_a - norm_b)")
+        ax2.legend(loc="upper left")
+        ax2.grid(True, alpha=0.3)
+
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        return fig
 
 
 def prescreen_pair(
@@ -107,6 +170,9 @@ def prescreen_pair(
         and row["zero_crossings"] >= min_zero_crossings
     )
 
+    # Get plot data
+    df_plot = lf_norm.select("timestamp", "norm_a", "norm_b", "spread").collect()
+
     return PrescreenResult(
         correlation=row["correlation"],
         spread_mean=row["spread_mean"],
@@ -116,84 +182,10 @@ def prescreen_pair(
         half_life=row["half_life"],
         passed=passed,
         n_observations=row["n_observations"],
+        col_a=col_a,
+        col_b=col_b,
+        timestamps=df_plot["timestamp"].to_list(),
+        norm_a=df_plot["norm_a"].to_list(),
+        norm_b=df_plot["norm_b"].to_list(),
+        spread=df_plot["spread"].to_list(),
     )
-
-
-def plot_prescreen(
-    lf: pl.LazyFrame,
-    col_a: str,
-    col_b: str,
-    result: PrescreenResult,
-) -> "Figure":
-    """
-    Plot normalized prices and spread for visual inspection.
-
-    Returns a matplotlib Figure with two subplots:
-    - Top: Normalized prices for both series
-    - Bottom: Spread with mean and ±1σ bands
-    """
-    import matplotlib.pyplot as plt
-
-    # Compute normalized data
-    df = (
-        lf.with_columns(
-            (pl.col(col_a) / pl.col(col_a).first()).alias("norm_a"),
-            (pl.col(col_b) / pl.col(col_b).first()).alias("norm_b"),
-        )
-        .with_columns(
-            (pl.col("norm_a") - pl.col("norm_b")).alias("spread"),
-        )
-        .collect()
-    )
-
-    norm_a = df["norm_a"].to_numpy()
-    norm_b = df["norm_b"].to_numpy()
-    spread = df["spread"].to_numpy()
-    x = range(len(norm_a))
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-
-    # Top: normalized prices
-    ax1.plot(x, norm_a, label=col_a, alpha=0.8)
-    ax1.plot(x, norm_b, label=col_b, alpha=0.8)
-    ax1.set_ylabel("Normalized Price")
-    ax1.legend(loc="upper left")
-    half_life_str = f"{result.half_life:.1f}" if result.half_life else "None"
-    ax1.set_title(
-        f"Prescreen: {'PASS' if result.passed else 'FAIL'} | "
-        f"corr={result.correlation:.3f} | "
-        f"half_life={half_life_str} | "
-        f"crossings={result.zero_crossings}"
-    )
-    ax1.grid(True, alpha=0.3)
-
-    # Bottom: spread with bands
-    ax2.plot(x, spread, label="Spread", color="purple", alpha=0.8)
-    ax2.axhline(result.spread_mean, color="black", linestyle="--", label="Mean")
-    ax2.axhline(
-        result.spread_mean + result.spread_std,
-        color="gray",
-        linestyle=":",
-        alpha=0.7,
-    )
-    ax2.axhline(
-        result.spread_mean - result.spread_std,
-        color="gray",
-        linestyle=":",
-        alpha=0.7,
-        label="±1σ",
-    )
-    ax2.fill_between(
-        x,
-        result.spread_mean - result.spread_std,
-        result.spread_mean + result.spread_std,
-        alpha=0.1,
-        color="gray",
-    )
-    ax2.set_xlabel("Observation")
-    ax2.set_ylabel("Spread (norm_a - norm_b)")
-    ax2.legend(loc="upper left")
-    ax2.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    return fig
